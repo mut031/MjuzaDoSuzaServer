@@ -40,3 +40,7 @@ app.delete('/playlist', (req, res) => {
     db.collection('playlist').deleteOne({ 'id': req.body.id })
         .then(data => res.send(data));
 });
+
+app.get('/*', (req, res) => {
+    res.sendFile(__dirname + '/www/index.html');
+})
