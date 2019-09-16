@@ -7,7 +7,7 @@
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = "<ion-content class=\"content\" color=\"dark\">\n    <span class=\"title\">MJUZA DO SUZA</span>\n    <ion-icon routerLink=\"/tv\" class=\"play\" name=\"play-circle\" color=\"danger\"></ion-icon>\n</ion-content>"
+module.exports = "<ion-content class=\"content\" color=\"dark\">\n    <span class=\"title\">MJUZA DO SUZA</span>\n    <ion-icon routerLink=\"/tv\" class=\"play\" name=\"play-circle\" color=\"danger\"></ion-icon>\n</ion-content>\n<ion-content class=\"content\" color=\"dark\">\n    <span class=\"title\">USER</span>\n    <ion-icon routerLink=\"/user\" class=\"play\" name=\"play-circle\" color=\"danger\"></ion-icon>\n</ion-content>"
 
 /***/ }),
 

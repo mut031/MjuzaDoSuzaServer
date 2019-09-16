@@ -632,7 +632,7 @@ __webpack_require__.r(__webpack_exports__);
 const environment = {
     production: false,
     YOUTUBE_API_KEY: 'AIzaSyDOv8hKWlin7SnRsvyy30jPOuZcGH2-USk',
-    SERVER_URL: "http://localhost:3001"
+    SERVER_URL: "https://giant-vampirebat-82.localtunnel.me"
 };
 
 
