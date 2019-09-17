@@ -40,7 +40,8 @@ app.delete('/playlist', (req, res) => {
     db.collection('playlist').deleteOne({ 'id': req.body.id })
         .then(data => res.send(data));
 });
-    res.sendFile(__dirname + '/www/index.html');
-})
-//update current song
-    db.collection('playlist').updateOne(myquery, newvalues, function (err, res) {
+app.get('/*', (req, res) => {
+        res.sendFile(__dirname + '/www/index.html');
+    })
+    //update current song
+    db.collection('playlist').updateOne(myquery, newvalues, function(err, res) {
