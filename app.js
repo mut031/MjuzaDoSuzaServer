@@ -20,7 +20,7 @@ database.then(res => {
 });
 
 //add song to playlist
-app.post('/playlist', (req, res) => {
+app.put('/playlist', (req, res) => {
     db.collection('playlist').insertOne(req.body.item);
     res.send({ mrki: 'ljakse' });
 });
@@ -42,13 +42,5 @@ app.delete('/playlist', (req, res) => {
 });
     res.sendFile(__dirname + '/www/index.html');
 })
-    //update current song
-app.put('/playlist', (req, res) => {
-    var myquery = { id: req.body.id };
-    var newvalues = { $set: { isCurrent: req.body.isNew } };
-    db.collection('playlist').updateOne(myquery, newvalues, function(err, res) {
-        if (err) throw err;
-        console.log("1 document updated");
-    });
-    res.send({ mrki: 'ljakse' });
-});
+//update current song
+    db.collection('playlist').updateOne(myquery, newvalues, function (err, res) {
