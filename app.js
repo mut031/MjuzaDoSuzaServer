@@ -7,6 +7,8 @@ let db;
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+const http = require('http').Server(app);
+const io = require('socket.io')(http);
 
 const port = 3001;
 
@@ -15,14 +17,20 @@ app.use(express.static('www'));
 database.then(res => {
     db = res;
     Promise.all(setupDb(res)).then(() => {
-        app.listen(port, () => console.log('Listening on port 3001'));
+        //http instead of app because of socket.io
+        http.listen(port, () => console.log('Listening on port 3001'));
     })
 });
 
 //add song to playlist
 app.post('/playlist', (req, res) => {
-    db.collection('playlist').insertOne(req.body.item);
-    res.send({ mrki: 'ljakse' });
+    db.collection('playlist').findOne({ id: req.body.item.id }).then(result => {
+        if (!result) {
+            db.collection('playlist').insertOne(req.body.item);
+            res.send({ mrki: 'ljakse' });
+        }
+        else res.send({ mrki: 'sadasdas' });
+    });
 });
 
 //get songs in playlist
@@ -38,14 +46,17 @@ app.get('/playlist', (req, res) => {
 //delete song from playlist
 app.delete('/playlist', (req, res) => {
     db.collection('playlist').deleteOne({ 'id': req.body.id })
-        .then(data => res.send(data));
+        .then(data => {
+            io.emit('update');
+            res.send(data);
+        });
 });
 
 //update current song
 app.put('/playlist', (req, res) => {
     var myquery = { id: req.body.id };
     var newvalues = { $set: { isCurrent: req.body.isNew } };
-    db.collection('playlist').updateOne(myquery, newvalues, function(err, res) {
+    db.collection('playlist').updateOne(myquery, newvalues, function (err, res) {
         if (err) throw err;
         console.log("1 document updated");
     });
@@ -54,4 +65,59 @@ app.put('/playlist', (req, res) => {
 
 app.get('/*', (req, res) => {
     res.sendFile(__dirname + '/www/index.html');
+});
+
+
+
+
+
+// Manage the Socket server event listener methods and
+// how realtime chat messages are handled/broadcast
+io.on('connection', (socket) => {
+
+    /* Set up a disconnect event*/
+    socket.on('disconnect', () => {
+        // Broadcast the event and return a JavaScript map of values
+        // for use within the Ionic app
+        io.emit('user-exited', { user: socket.alias });
+    });
+
+
+
+    /**
+     * Listen for when a message has been sent from the Ionic app
+     */
+    socket.on('updatePlaylist', () => {
+        // Broadcast the message and return a JavaScript map of values
+        // for use within the Ionic app
+        io.emit('update');
+    });
+
+
+
+    /**
+     * Listen for when an image has been sent from the Ionic app
+     */
+    socket.on('add-image', (message) => {
+        // Broadcast the message and return a JavaScript map of values
+        // for use within the Ionic app
+        io.emit('message', { image: message.image, sender: socket.alias, tagline: socket.handle, location: socket.location, published: new Date() });
+    });
+
+
+
+    /**
+     * Allows the user to join the current chat session
+     */
+    socket.on('set-alias', (obj) => {
+        // Define socket object properties (which we can use with our other
+        // Socket.io event listener methods) and return a JavaScript map of
+        // values for use within the Ionic app
+        socket.alias = obj.alias;
+        socket.handle = obj.handle;
+        socket.location = obj.location;
+        io.emit('alias-added', { user: obj.alias, tagline: obj.handle, location: obj.location });
+    });
+
+
 });
