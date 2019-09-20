@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 
-const port = 3001;
+const port = 3002;
 
 app.use(express.static('www'));
 
@@ -18,18 +18,28 @@ database.then(res => {
     db = res;
     Promise.all(setupDb(res)).then(() => {
         //http instead of app because of socket.io
-        http.listen(port, () => console.log('Listening on port 3001'));
+        http.listen(port, () => console.log('Listening on port 3002'));
     })
 });
 
 //add song to playlist
 app.post('/playlist', (req, res) => {
-    db.collection('playlist').findOne({ id: req.body.item.id }).then(result => {
-        if (!result) {
-            db.collection('playlist').insertOne(req.body.item);
-            res.send({ mrki: 'ljakse' });
+    db.collection('playlist').find({ $or: [{ id: req.body.item.id }, { isCurrent: true }] }).toArray((err, result) => {
+        if (err) throw err;
+        switch (result.length) {
+            case 0:
+                db.collection('playlist').insertOne({ isCurrent: true, ...req.body.item });
+                break;
+            case 1:
+                if (req.body.item.id != result[0].id)
+                    db.collection('playlist').insertOne(req.body.item);
+                break;
+            default:
+                //song already exsists
+                break;
         }
-        else res.send({ mrki: 'sadasdas' });
+
+        res.send({ mrki: 'sadasdas' });
     });
 });
 
@@ -45,11 +55,14 @@ app.get('/playlist', (req, res) => {
 
 //delete song from playlist
 app.delete('/playlist', (req, res) => {
-    db.collection('playlist').deleteOne({ 'id': req.body.id })
-        .then(data => {
-            io.emit('update');
-            res.send(data);
-        });
+    if (!req.body.isCurrent)
+        db.collection('playlist').deleteOne({ 'id': req.body.id })
+            .then(data => {
+                io.emit('update');
+                res.send(data);
+            });
+    else
+        res.send({mrkiljakse: 'najveci'})
 });
 
 //update current song
