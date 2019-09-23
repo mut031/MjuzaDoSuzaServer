@@ -9,6 +9,7 @@ app.use(cors());
 app.use(bodyParser.json());
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
+const scraper = require('./scraper')
 
 const port = 3002;
 
@@ -26,20 +27,38 @@ database.then(res => {
 app.post('/playlist', (req, res) => {
     db.collection('playlist').find({ $or: [{ id: req.body.item.id }, { isCurrent: true }] }).toArray((err, result) => {
         if (err) throw err;
+        let response = {};
         switch (result.length) {
             case 0:
                 db.collection('playlist').insertOne({ isCurrent: true, ...req.body.item });
+                response = {
+                    message: "Song added to playlist!",
+                    status: 'success'
+                }
                 break;
             case 1:
-                if (req.body.item.id != result[0].id)
-                    db.collection('playlist').insertOne(req.body.item);
+                if (req.body.item.id != result[0].id) {
+                    db.collection('playlist').insertOne({ isCurrent: false, ...req.body.item });
+                    response = {
+                        message: "Song added to playlist!",
+                        status: 'success'
+                    }
+                }
+                else
+                    response = {
+                        message: "This song is playing right now!",
+                        status: 'primary'
+                    }
                 break;
             default:
-                //song already exsists
+                response = {
+                    message: "This song is already on the playlist!",
+                    status: 'danger'
+                }
                 break;
         }
 
-        res.send({ mrki: 'sadasdas' });
+        res.send(response);
     });
 });
 
@@ -62,7 +81,7 @@ app.delete('/playlist', (req, res) => {
                 res.send(data);
             });
     else
-        res.send({mrkiljakse: 'najveci'})
+        res.send({ mrkiljakse: 'najveci' })
 });
 
 //update current song
@@ -74,6 +93,13 @@ app.put('/playlist', (req, res) => {
         console.log("1 document updated");
     });
     res.send({ mrki: 'ljakse' });
+});
+
+//search API route
+app.get('/search', (req, res) => {
+    scraper.youtube(req.query.q, req.query.page)
+        .then(x => res.json(x))
+        .catch(e => res.send(e));
 });
 
 app.get('/*', (req, res) => {
