@@ -18,16 +18,41 @@ app.use(express.static('www'));
 database.then(res => {
     db = res;
     Promise.all(setupDb(res)).then(() => {
+        db.collection('songs').createIndex( { playlists: 1} );
         //http instead of app because of socket.io
         http.listen(port, () => console.log('Listening on port 3000'));
     })
+});
+
+//add song
+app.put('/song', (req, res) => {
+    db.collection('songs').insertOne({ ...req.body.item, playlists: ['1'] })
+        .then(() => {
+            res.send({ message: "Song added to playlist!", status: 'primary' });
+        })
+        .catch(() => {
+            db.collection('songs').updateOne({ _id: req.body.item._id }, { $push: { playlists: '2' } })
+                .then(() => {
+                    res.send({ message: "Song added to playlist 2!", status: 'primary' });
+                });
+        })
+    // db.collection('songs').countDocuments()
+    //     .then((count) => {
+    //         db.collection('playlist').insertOne({ _id: req.body.item.id, isCurrent: count === 0, ...req.body.item })
+    //             .then(() => {
+    //                 res.send({ message: "Song added to playlist!", status: 'primary' });
+    //             })
+    //             .catch(() => {
+    //                 res.send({ message: "This song is already on the playlist!", status: 'danger' });
+    //             });
+    //     });
 });
 
 //add song to playlist
 app.post('/playlist', (req, res) => {
     db.collection('playlist').countDocuments()
         .then((count) => {
-            db.collection('playlist').insertOne({ _id: req.body.item.id, isCurrent: count === 0, ...req.body.item })
+            db.collection('playlist').insertOne({ isCurrent: count === 0, ...req.body.item })
                 .then(() => {
                     res.send({ message: "Song added to playlist!", status: 'primary' });
                 })
@@ -49,13 +74,13 @@ app.get('/playlist', (req, res) => {
 //delete song from playlist
 app.delete('/playlist', (req, res) => {
     if (!req.body.isCurrent)
-        db.collection('playlist').deleteOne({ 'id': req.body.id })
+        db.collection('playlist').deleteOne({ _id: req.body._id })
             .then(() => {
                 io.emit('update');
-                res.send({message: "Song deleted from playlist!", status: 'primary'});
+                res.send({ message: "Song deleted from playlist!", status: 'primary' });
             });
-    else 
-        res.send({message: "Cannot delete this song!", status: 'danger'});
+    else
+        res.send({ message: "Cannot delete this song!", status: 'danger' });
 });
 
 //update current song
@@ -64,7 +89,7 @@ app.put('/playlist', (req, res) => {
     // //     { _id: { $in: [req.body.newId, req.body.currentId]}},
     // //     { $set: { "isCurrent" : $isCurrent }}
     // // )
-    
+
     // db.collection('playlist').find({ _id: { $in: [req.body.newId, req.body.currentId]}}).snapshot().forEach(elem => {
     //         db.collection('playlist').updateOne(
     //             { _id: elem._id },
@@ -76,7 +101,7 @@ app.put('/playlist', (req, res) => {
     //     io.emit('update');
     //     res.send();
     // })
-    var myquery = { id: req.body.id };
+    var myquery = { _id: req.body.id };
     var newvalues = { $set: { isCurrent: req.body.isNew } };
     db.collection('playlist').updateOne(myquery, newvalues, function (err, res) {
         if (err) throw err;
