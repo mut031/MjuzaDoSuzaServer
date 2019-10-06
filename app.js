@@ -18,98 +18,99 @@ app.use(express.static('www'));
 database.then(res => {
     db = res;
     Promise.all(setupDb(res)).then(() => {
-        db.collection('songs').createIndex( { playlists: 1} );
+        db.collection('songs').createIndex({ playlists: 1 });
         //http instead of app because of socket.io
         http.listen(port, () => console.log('Listening on port 3000'));
     })
 });
 
-//add song
-app.put('/song', (req, res) => {
-    db.collection('songs').insertOne({ ...req.body.item, playlists: ['1'] })
-        .then(() => {
-            res.send({ message: "Song added to playlist!", status: 'primary' });
-        })
-        .catch(() => {
-            db.collection('songs').updateOne({ _id: req.body.item._id }, { $push: { playlists: '2' } })
-                .then(() => {
-                    res.send({ message: "Song added to playlist 2!", status: 'primary' });
-                });
-        })
-    // db.collection('songs').countDocuments()
-    //     .then((count) => {
-    //         db.collection('playlist').insertOne({ _id: req.body.item.id, isCurrent: count === 0, ...req.body.item })
-    //             .then(() => {
-    //                 res.send({ message: "Song added to playlist!", status: 'primary' });
-    //             })
-    //             .catch(() => {
-    //                 res.send({ message: "This song is already on the playlist!", status: 'danger' });
-    //             });
-    //     });
-});
-
-//add song to playlist
-app.post('/playlist', (req, res) => {
-    db.collection('playlist').countDocuments()
-        .then((count) => {
-            db.collection('playlist').insertOne({ isCurrent: count === 0, ...req.body.item })
-                .then(() => {
-                    res.send({ message: "Song added to playlist!", status: 'primary' });
-                })
-                .catch(() => {
-                    res.send({ message: "This song is already on the playlist!", status: 'danger' });
-                });
-        });
-});
 
 //get songs in playlist
-app.get('/playlist', (req, res) => {
-    db.collection('playlist').find().toArray((err, result) => {
+app.get('/songs/:id', (req, res) => {
+    db.collection('songs').find({ playlists: { $elemMatch: { roomId: req.params.id } } }).toArray((err, result) => {
         if (err) throw err;
-        //filter result nađi videoId
-        res.send(result);
+        res.send(result.sort((a, b) => (a.playlists.find(item => item.roomId === req.params.id).timeCreated > b.playlists.find(item => item.roomId === req.params.id).timeCreated) ? 1 : -1));
     });
 });
 
-//delete song from playlist
-app.delete('/playlist', (req, res) => {
-    if (!req.body.isCurrent)
-        db.collection('playlist').deleteOne({ _id: req.body._id })
-            .then(() => {
-                io.emit('update');
-                res.send({ message: "Song deleted from playlist!", status: 'primary' });
-            });
-    else
-        res.send({ message: "Cannot delete this song!", status: 'danger' });
+//add song
+app.post('/song', (req, res) => {
+    db.collection('songs').find({ playlists: { $elemMatch: { roomId: req.body.item.playlists[0].roomId } } }).toArray((err, result) => {
+        if (err) throw err;
+
+        let response;
+        let isSongInPlaylist = result.filter(song => song._id === req.body.item._id).length;
+        if (isSongInPlaylist) {
+            response = { message: `This song is already on the playlist!`, status: 'danger' };
+            res.send(response);
+        }
+        else {
+            req.body.item.playlists[0].isCurrent = false;
+            req.body.item.playlists[0].timeCreated = Date.now();
+            if (result.length === 0) {
+                req.body.item.playlists[0].isCurrent = true;
+            }
+            response = { message: `Song added to playlist ${req.body.item.playlists[0].roomId}!`, status: 'primary' };
+            db.collection('songs').insertOne(req.body.item)
+                .then(() => {
+                    io.in(req.body.item.playlists[0].roomId).emit('update');
+                    res.send(response);
+                })
+                .catch(() => {
+                    db.collection('songs').updateOne({ _id: req.body.item._id }, { $push: { playlists: req.body.item.playlists[0] } })
+                        .then(() => {
+                            io.in(req.body.item.playlists[0].roomId).emit('update');
+                            res.send(response);
+                        });
+                })
+        }
+    })
 });
 
 //update current song
-app.put('/playlist', (req, res) => {
-    // // db.collection('playlist').updateMany(
-    // //     { _id: { $in: [req.body.newId, req.body.currentId]}},
-    // //     { $set: { "isCurrent" : $isCurrent }}
-    // // )
+app.put('/song', (req, res) => {
+    db.collection('songs').bulkWrite([
+        {
+            replaceOne:
+            {
+                "filter": { _id: req.body.songs[0]._id },
+                "replacement": req.body.songs[0]
+            }
+        },
+        {
+            replaceOne:
+            {
+                "filter": { _id: req.body.songs[1]._id },
+                "replacement": req.body.songs[1]
+            }
+        }
+    ])
+        .then(() => {
+            io.in(req.body.roomId).emit('update');
+            res.send({ message: "Playing next song!", status: 'success' });
+        });
+});
 
-    // db.collection('playlist').find({ _id: { $in: [req.body.newId, req.body.currentId]}}).snapshot().forEach(elem => {
-    //         db.collection('playlist').updateOne(
-    //             { _id: elem._id },
-    //             { $set: { isCurrent: !elem.isCurrent } }
-    //         );
-    //     }
-    // )
-    // .then(() => {
-    //     io.emit('update');
-    //     res.send();
-    // })
-    var myquery = { _id: req.body.id };
-    var newvalues = { $set: { isCurrent: req.body.isNew } };
-    db.collection('playlist').updateOne(myquery, newvalues, function (err, res) {
-        if (err) throw err;
-        console.log("1 document updated");
-        //2 puta get na mijenjanje pjesme
-        io.emit('update');
-    });
-    res.send({ mrki: 'ljakse' });
+//delete song from playlist
+app.delete('/song', (req, res) => {
+    if (req.body.song.playlists.length === 1) {
+        db.collection('songs').deleteOne({ _id: req.body.song._id })
+            .then(() => {
+                io.in(req.body.roomId).emit('update');
+                res.send({ message: "Song deleted from playlist!", status: 'primary' });
+            });
+    }
+    else {
+        let newList = req.body.song.playlists.filter(item => item.roomId !== req.body.roomId);
+        db.collection('songs').updateOne(
+            { _id: req.body.song._id },
+            { $set: { "playlists" : newList } }
+        )
+        .then(() => {
+            io.in(req.body.roomId).emit('update');
+            res.send({ message: "Song deleted from playlist!", status: 'primary' });
+        });
+    }
 });
 
 //search API route
@@ -124,56 +125,19 @@ app.get('/*', (req, res) => {
 });
 
 
-
-
-
-// Manage the Socket server event listener methods and
-// how realtime chat messages are handled/broadcast
 io.on('connection', (socket) => {
+    // /* Set up a disconnect event*/
+    // socket.on('disconnect', () => {
+    //     // Broadcast the event and return a JavaScript map of values
+    //     // for use within the Ionic app
+    //     io.emit('user-exited', { user: socket.alias });
+    // });
 
-    /* Set up a disconnect event*/
-    socket.on('disconnect', () => {
-        // Broadcast the event and return a JavaScript map of values
-        // for use within the Ionic app
-        io.emit('user-exited', { user: socket.alias });
+    socket.on('updatePlaylistInRoom', (data) => {
+        io.in(data.id).emit('update');
     });
 
-
-
-    /**
-     * Listen for when a message has been sent from the Ionic app
-     */
-    socket.on('updatePlaylist', () => {
-        // Broadcast the message and return a JavaScript map of values
-        // for use within the Ionic app
-        io.emit('update');
+    socket.on('createRoom', (data) => {
+        socket.join(data.roomId);
     });
-
-
-
-    /**
-     * Listen for when an image has been sent from the Ionic app
-     */
-    socket.on('add-image', (message) => {
-        // Broadcast the message and return a JavaScript map of values
-        // for use within the Ionic app
-        io.emit('message', { image: message.image, sender: socket.alias, tagline: socket.handle, location: socket.location, published: new Date() });
-    });
-
-
-
-    /**
-     * Allows the user to join the current chat session
-     */
-    socket.on('set-alias', (obj) => {
-        // Define socket object properties (which we can use with our other
-        // Socket.io event listener methods) and return a JavaScript map of
-        // values for use within the Ionic app
-        socket.alias = obj.alias;
-        socket.handle = obj.handle;
-        socket.location = obj.location;
-        io.emit('alias-added', { user: obj.alias, tagline: obj.handle, location: obj.location });
-    });
-
-
 });
