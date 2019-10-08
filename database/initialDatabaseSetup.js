@@ -13,11 +13,9 @@ let setupDb = db => {
                             },
                             title: {
                                 bsonType: "string",
-                                //  pattern : "@mongodb\.com$",
                                 description: "must be a string"
                             },
                             uploader: {
-                                //  enum: [ "Unknown", "Incomplete" ],
                                 bsonType: "string",
                                 description: "must be a string"
                             },
@@ -33,22 +31,23 @@ let setupDb = db => {
                     }
                 }
             })
-                .then(() => resolve(true))
+                .then(() => {
+                    db.collection('songs').createIndex({ playlists: 1 });
+                    resolve(true);
+                });
         }),
         new Promise((resolve, reject) => {
             db.createCollection("playlists", {
                 validator: {
                     $jsonSchema: {
                         bsonType: "object",
-                        // required: ["_id"],
+                        required: ["title"],
                         properties: {
                             title: {
                                 bsonType: "string",
-                                //  pattern : "@mongodb\.com$",
                                 description: "must be a string"
                             },
                             description: {
-                                //  enum: [ "Unknown", "Incomplete" ],
                                 bsonType: "string",
                                 description: "must be a string"
                             },
@@ -60,7 +59,10 @@ let setupDb = db => {
                     }
                 }
             })
-                .then(() => resolve(true))
+                .then(() => {
+                    db.collection('playlists').createIndex({ title: 1 }, { unique: true });
+                    resolve(true);
+                })
         }),
         new Promise((resolve, reject) => {
             db.createCollection("users", {

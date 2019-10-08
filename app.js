@@ -18,7 +18,6 @@ app.use(express.static('www'));
 database.then(res => {
     db = res;
     Promise.all(setupDb(res)).then(() => {
-        db.collection('songs').createIndex({ playlists: 1 });
         //http instead of app because of socket.io
         http.listen(port, () => console.log('Listening on port 3000'));
     })
@@ -104,13 +103,32 @@ app.delete('/song', (req, res) => {
         let newList = req.body.song.playlists.filter(item => item.roomId !== req.body.roomId);
         db.collection('songs').updateOne(
             { _id: req.body.song._id },
-            { $set: { "playlists" : newList } }
+            { $set: { "playlists": newList } }
         )
-        .then(() => {
-            io.in(req.body.roomId).emit('update');
-            res.send({ message: "Song deleted from playlist!", status: 'primary' });
-        });
+            .then(() => {
+                io.in(req.body.roomId).emit('update');
+                res.send({ message: "Song deleted from playlist!", status: 'primary' });
+            });
     }
+});
+
+//get playlists
+app.get('/playlists', (req, res) => {
+    db.collection('playlists').find().toArray((err, result) => {
+        if (err) throw err;
+        res.send(result.map(item => item.title));
+    });
+});
+
+//add playlist
+app.post('/playlist', (req, res) => {
+    db.collection('playlists').insertOne(req.body.item)
+        .then(() => {
+            res.send({ message: "Dodo jes dodo!", status: 'primary' });
+        })
+        .catch(() => {
+            res.send();
+        });
 });
 
 //search API route
