@@ -11,7 +11,7 @@ const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const scraper = require('./scraper')
 
-const port = 3000;
+const port = 3000 || process.env.port;
 
 app.use(express.static('www'));
 
