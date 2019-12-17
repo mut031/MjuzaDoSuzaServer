@@ -1,3 +1,4 @@
+console.log("asdas")
 const database = require('./database/db.js').database;
 const setupDb = require('./database/initialDatabaseSetup.js').setupDb;
 const express = require('express');
@@ -10,7 +11,7 @@ app.use(bodyParser.json());
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const scraper = require('./scraper')
-
+console.log("asda")
 const port = process.env.port || 3000;
 
 app.use(express.static('www'));
@@ -19,7 +20,8 @@ database.then(res => {
     db = res;
     Promise.all(setupDb(res)).then(() => {
         //http instead of app because of socket.io
-        http.listen(port, () => console.log('Listening on port 3000'));
+        console.log("asda")
+        http.listen(port, () => console.log('Listening on port ' + port));
     })
 });
 
