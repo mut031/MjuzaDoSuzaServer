@@ -79,7 +79,10 @@ let setupDb = db => {
                     }
                 }
             })
-                .then(() => resolve(true))
+                .then(() => {
+                    db.collection('users').createIndex({ username: 1 }, { unique: true });
+                    resolve(true);
+                })
         })
     ]
 }

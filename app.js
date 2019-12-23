@@ -1,4 +1,3 @@
-console.log("asdas")
 const database = require('./database/db.js').database;
 const setupDb = require('./database/initialDatabaseSetup.js').setupDb;
 const express = require('express');
@@ -11,8 +10,7 @@ app.use(bodyParser.json());
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const scraper = require('./scraper')
-console.log("asda")
-const port = process.env.port || 3000;
+const port = process.env.PORT || 3000;
 
 app.use(express.static('www'));
 
@@ -20,7 +18,6 @@ database.then(res => {
     db = res;
     Promise.all(setupDb(res)).then(() => {
         //http instead of app because of socket.io
-        console.log("asda")
         http.listen(port, () => console.log('Listening on port ' + port));
     })
 });
@@ -92,6 +89,30 @@ app.put('/song', (req, res) => {
         });
 });
 
+//login user
+app.get('/user/:username', (req, res) => {
+    db.collection('users').findOne({ username: req.params.username }, (err, result) => {
+        if (err) throw err;
+        res.send(result);
+    });
+});
+
+
+//register user
+app.post('/user', (req, res) => {
+    response = { message: `user added!`, status: 'primary' };
+    db.collection('users').insertOne(req.body.user)
+        .then(() => {
+            res.send(response);
+        })
+        .catch(() => {
+            response = { message: `username already taken!`, status: 'danger' };
+            res.send(response);
+        })
+})
+
+
+
 //delete song from playlist
 app.delete('/song', (req, res) => {
     if (req.body.song.playlists.length === 1) {
@@ -118,7 +139,17 @@ app.delete('/song', (req, res) => {
 app.get('/playlists', (req, res) => {
     db.collection('playlists').find().toArray((err, result) => {
         if (err) throw err;
-        res.send(result.map(item => item.title));
+        res.send(result);
+        // res.send(result.map(item => {item.user, item.title}));
+    });
+});
+
+//get playlist
+app.get('/playlists/:id', (req, res) => {
+    db.collection('playlists').findOne({ title: req.params.id }, (err, result) => {
+        if (err) throw err;
+        res.send(result);
+        // res.send(result.map(item => {item.user, item.title}));
     });
 });
 
