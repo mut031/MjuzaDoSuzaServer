@@ -157,7 +157,7 @@ app.get('/playlists/:id', (req, res) => {
 app.post('/playlist', (req, res) => {
     db.collection('playlists').insertOne(req.body.item)
         .then(() => {
-            res.send({ message: "Dodo jes dodo!", status: 'primary' });
+            res.send({ message: "Room created, start adding songs!", status: 'success' });
         })
         .catch(() => {
             res.send();
