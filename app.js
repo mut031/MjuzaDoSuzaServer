@@ -164,6 +164,14 @@ app.post('/playlist', (req, res) => {
         });
 });
 
+//delete playlist
+app.delete('/playlists', (req, res) => {
+        db.collection('playlists').deleteOne({ title: req.body.roomId })
+            .then(() => {
+                res.send({ message: "Room deleted!", status: 'primary' });
+            });
+});
+
 //search API route
 app.get('/search', (req, res) => {
     scraper.youtube(req.query.q, req.query.page)
