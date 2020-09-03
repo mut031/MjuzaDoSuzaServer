@@ -10,7 +10,8 @@ app.use(bodyParser.json());
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 const scraper = require('./scraper')
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
+const youtube = require('scrape-youtube');
 
 app.use(express.static('www'));
 
@@ -54,7 +55,7 @@ app.post('/song', (req, res) => {
                     io.in(req.body.item.playlists[0].roomId).emit('update');
                     res.send(response);
                 })
-                .catch(() => {
+                .catch((err) => {
                     db.collection('songs').updateOne({ _id: req.body.item._id }, { $push: { playlists: req.body.item.playlists[0] } })
                         .then(() => {
                             io.in(req.body.item.playlists[0].roomId).emit('update');
@@ -174,9 +175,13 @@ app.delete('/playlists', (req, res) => {
 
 //search API route
 app.get('/search', (req, res) => {
-    scraper.youtube(req.query.q, req.query.page)
-        .then(x => res.json(x))
-        .catch(e => res.send(e));
+    var yt = new youtube.Youtube();
+    yt.search(req.query.q).then(results => {
+        res.json(results);
+    }).catch(e => console.log(e));
+    // scraper.youtube(req.query.q, req.query.page)
+    //     .then(x => res.json(x))
+    //     .catch(e => res.send(e));
 });
 
 app.get('/*', (req, res) => {

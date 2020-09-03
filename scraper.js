@@ -1,11 +1,12 @@
 const cheerio = require('cheerio');
 const request = require('request');
+const youtube2 = require('scrape-youtube');
 
 async function youtube(query, page) {
     return new Promise((resolve, reject) => {
         // Specify YouTube search url
-        let url = `https://www.youtube.com/results?q=${encodeURIComponent(query)}${page ? `&page=${page}` : ''}`;
-
+        let url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}${page ? `&page=${page}` : ''}`;
+  
         // Access YouTube search
         request(url, (error, response, html) => {
             // Check for errors

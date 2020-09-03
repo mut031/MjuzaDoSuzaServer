@@ -17,6 +17,7 @@
     "mongodb": "^3.3.2",
     "nodemon": "^1.19.2",
     "request": "^2.88.0",
+    "scrape-youtube": "^0.2.2",
     "socket.io": "^2.2.0"
   }
 }
